@@ -36,6 +36,14 @@ class Student(Person):
         person_id = cursor.execute("SELECT last_insert_rowid() FROM Person").fetchall()
         cursor.execute("INSERT INTO Student (person_id,registration) VALUES (?,?)", (person_id[0][0], self.registration,))
 
+class Curso:
+    def __init__(self):
+        pass
+
+class Turma(Curso):
+    def __init__(self):
+        pass
+
 class Check:
     def __regex_check(self):
         result = re.search(self.regex, self.text)
