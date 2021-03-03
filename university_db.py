@@ -1,4 +1,3 @@
-
 # Modelar um sistema de gerenciamento de banco de dados de alunos para Universidades Com as seguintes considerações:
 
 # Você deverá cadastrar as seguintes informações de cada profissional da Universidade (Alunos e Professores):
@@ -66,7 +65,7 @@ class Class(Course):
             return True
 
         except sqlite3.IntegrityError:
-            print("Verifique se você inseriu os ids corretamente e tente novamente\n.")
+            print("Verifique se você inseriu os ids corretamente e tente novamente.\n")
             return False
 
 class Check:
@@ -134,25 +133,25 @@ if __name__=="__main__":
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     first_name VARCHAR2(255),
     last_name VARCHAR2(255),
-    email VARCHAR2(255),
+    email VARCHAR2(255) UNIQUE,
     birth DATE);
     """
     #Student Table
     student_table = """CREATE TABLE IF NOT EXISTS Student (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     person_id INTEGER NOT NULL REFERENCES Person(id),
-    registration INTEGER);
+    registration INTEGER UNIQUE);
     """
     #Teacher Table
     teacher_table = """CREATE TABLE IF NOT EXISTS Teacher (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     person_id INTEGER NOT NULL REFERENCES Person(id),
-    registration INTEGER);
+    registration INTEGER UNIQUE);
     """
     #Course Table
     course_table = """CREATE TABLE IF NOT EXISTS Course (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    name VARCHAR2(255),
+    name VARCHAR2(255) UNIQUE,
     duration INTEGER,
     syllabus TEXT);
     """
@@ -229,37 +228,41 @@ if __name__=="__main__":
                 elif resp == '5':
                     print(f"Resposta {resp}")
                     student_id = input("Por favor, insira o *id do aluno*:\n")
+                    student_id = check.id(student_id)
                     class_id = input("Por favor, insira o *id da turma*:\n")
+                    class_id = check.id(class_id)
+                    student_name = cursor.execute('SELECT P.first_name, P.last_name FROM Student S INNER JOIN Person P ON (S.person_id = P.id) AND (S.id = ?)',(student_id,)).fetchall()
+                    exceeded = False
 
-                    try:
-                        #Método para pegar o id do curso
-                        course_id_atual = cursor.execute('SELECT Co.id FROM Grade G INNER JOIN Class Cl ON (G.student_id = ?) AND (G.class_id = ?) AND (G.class_id = Cl.id) '
-                        'INNER JOIN Course Co ON (Co.id = Cl.course_id)',(student_id,class_id,)).fetchall()
+                    #ID do curso relativo a turma a qual está se querendo adicionar
+                    course_id_atual = cursor.execute('SELECT Co.id FROM Class Cl INNER JOIN Course Co ON (Co.id = Cl.course_id) AND (Cl.id = ?)',(class_id,)).fetchall()
 
-                        if course_id_atual != []:
-                            student_tries = cursor.execute('SELECT COUNT(G.student_id) FROM Grade G INNER JOIN Class Cl ON (G.student_id = ?) AND (G.class_id = Cl.id) '
-                            'INNER JOIN Course Co ON (Cl.course_id = Co.id) AND (Co.id = ?)',(student_id,course_id_atual[0][0],)).fetchall()
-                            print(f"student_tries: {student_tries}")
-                            ##Forma alternativa##
-                            #course_id_atual = cursor.execute('SELECT Co.id FROM Grade G, Class Cl, Course Co WHERE (G.student_id = ?) AND (G.class_id = ?) ' 
-                            #'AND (G.class_id = Cl.id) AND (Co.id = Cl.course_id)'(student_id,class_id,)).fetchall()
-                            #student_tries = cursor.execute('SELECT COUNT(G.student_id) FROM Grade G, Class Cl, Course Co WHERE (G.student_id = ?) AND (G.class_id = Cl.id) AND '
-                            #'(Cl.course_id = Co.id) AND (Co.id = ?)',(student_id,course_id_atual[0][0],)).fetchall()
+                    #Método para ver se o aluno já está cadastrado na turma
+                    val = cursor.execute(f'SELECT G.student_id, G.class_id FROM Grade G WHERE (student_id = ?) AND (class_id = ?)',(student_id,class_id,)).fetchall()
 
-                            if student_tries[0][0] > 3:
-                                student_name = cursor.execute('SELECT P.first_name, P.last_name FROM Student S INNER JOIN Person P ON (S.person_id = P.id) AND (S.id = ?)',(student_id,)).fetchall()
-                                print(f"O aluno {student_name[0][0]} {student_name[0][1]} de id {student_id} já realizou o curso por 3 vezes.")
+                    #Método para ver quantas vezes o aluno já fez o curso relativo à turma
+                    student_tries = cursor.execute('SELECT COUNT(*) FROM Grade G INNER JOIN Class Cl ON (G.student_id = ?) AND (G.class_id = Cl.id) '
+                    'INNER JOIN Course Co ON (Co.id = Cl.course_id) AND (Co.id = ?) GROUP BY Co.id',(student_id, course_id_atual[0][0])).fetchall()
+                    
+                    if student_tries == []:
+                        student_tries = [(0,)]
 
-                        else:
+                    if student_tries[0][0] > 2:
+                        print(f"O aluno {student_name[0][0]} {student_name[0][1]}, de id {student_id}, já realizou o curso de id {course_id_atual[0][0]} por 3 vezes.\n")
+                        exceeded = True                           
+
+                    if val != []:
+                        print(f"O aluno {student_name[0][0]} {student_name[0][1]}, de id {student_id}, já foi cadastrado na turma {class_id}.\n")
+                        exceeded = True
+                    try: 
+                        if not exceeded:
                             value = input("Por favor, insira a *nota do aluno*, variando de 0 a 100:\n")
                             cursor.execute("INSERT INTO Grade (student_id,class_id,value) VALUES (?,?,?)", (student_id, class_id, value,))
                             db.commit() #executa as mudanças no bd
-                            student_name = cursor.execute('SELECT P.first_name, P.last_name FROM Student S INNER JOIN Person P ON (S.person_id = P.id) '
-                            'INNER JOIN Grade G ON (S.id = G.student_id) ORDER BY G.id DESC').fetchall()
                             print(f"O aluno {student_name[0][0]} {student_name[0][1]} teve sua nota cadastrada com sucesso.\n")
 
-                    except NameError or sqlite3.IntegrityError:
-                        print("ATENÇÃO! Verifique se você inseriu os ids corretamente.\n")
+                    except sqlite3.IntegrityError:
+                        print(f"ATENÇÃO! Verifique se você inseriu os ids corretamente.\n")
 
                 else:
                     print("Saindo do módulo cadastro.")
@@ -301,9 +304,11 @@ if __name__=="__main__":
                     print(f"Resposta {resp}")
                     print_full_table('Grade','table')
                     print('')
+
                     #Pego o estudante que consta em 'Person', 'Student' e 'Grade', sua nota e o ID da turma
                     sql_inner_join_student = ('SELECT P.id, P.first_name, P.last_name, G.value, G.class_id FROM Student S INNER JOIN Person P ON (S.person_id = P.id) '
                     'INNER JOIN Grade G ON (S.id = G.student_id)')
+
                     #Pego o professor que consta em 'Person', 'Teacher' e 'Classe' e o nome do curso
                     sql_join_teacher = ('SELECT P.first_name, P.Last_name, Co.name, Cl.id as cl_id FROM Teacher T, Person P, Course Co, Class Cl WHERE '
                     '(Cl.teacher_id = T.id) AND (P.id = T.person_id) AND (Co.id = Cl.course_id)')
@@ -328,4 +333,3 @@ if __name__=="__main__":
             break
         
     db.close() #Fecha a conexão com o bd
-            	
