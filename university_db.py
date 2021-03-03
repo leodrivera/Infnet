@@ -9,24 +9,66 @@
 
 import os, sys, re, sqlite3
 
-class Person:
+class Person():
     def __init__(self):
         self.first_name = input("Por favor, insira o *primeiro nome* da pessoa:\n")
         self.last_name = input("Por favor, insira o *último nome* da pessoa:\n")
-        self.birth = input("Por favor, insira a *data de nascimento* da pessoa:\n")
+
+        self.birth = input("Por favor, insira a *data de nascimento* da pessoa, no formato dd/mm/yyyy:\n")
+        self.birth = check.birth(self.birth) # função para checar se a data está no formato correto
+
         self.email = input("Por favor, insira o *e-mail* da pessoa:\n")
+        self.email = check.email(self.email) # função para checar se a data está no formato correto
+
         cursor.execute("INSERT INTO Person (first_name,last_name,email,birth) VALUES (?,?,?,?)", (self.first_name, self.last_name, self.email, self.birth,))
 
-    def is_student(self):
-        self.registration = input("Por favor, insira o *número de registro* do aluno:\n")
-        person_id = cursor.execute("SELECT last_insert_rowid() FROM Student").fetchall()
-        cursor.execute("INSERT INTO Student (person_id,registration) VALUES (?,?)", (person_id[0][0], self.registration,))
-
-    def is_teacher(self):
-        self.registration = input("Por favor, insira o *número de registro* do professor:\n")
-        person_id = cursor.execute("SELECT last_insert_rowid()").fetchall()
+class Teacher(Person):
+    def __init__(self):
+        super().__init__()
+        self.registration = input("Por favor, insira o *número de registro* do professor (5 digitos):\n")
+        person_id = cursor.execute("SELECT last_insert_rowid() FROM Person").fetchall()
         cursor.execute("INSERT INTO Teacher (person_id,registration) VALUES (?,?)", (person_id[0][0], self.registration,))
 
+class Student(Person):
+    def __init__(self):
+        super().__init__()
+        self.registration = input("Por favor, insira o *número de registro* do aluno (5 dígitos):\n")
+        person_id = cursor.execute("SELECT last_insert_rowid() FROM Person").fetchall()
+        cursor.execute("INSERT INTO Student (person_id,registration) VALUES (?,?)", (person_id[0][0], self.registration,))
+
+class Check:
+    def __regex_check(self):
+        result = re.search(self.regex, self.text)
+        while not result:
+            self.text = input(self.message)
+            result = re.search(self.regex, self.text)
+        return self.text
+
+    def registration(self, registration):
+        self.text = registration
+        self.regex = '\d{5}' # para detectar 5 dígitos
+        self.message = "O *número de registro* deve conter 5 dígitos:\n"
+        return self.__regex_check()
+
+    def birth(self, date):
+        self.text = date
+        self.regex = '^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}' # para detectar dd/mm/aaaa
+        self.message = "A *data de nascimento* deve estar no formato dd/mm/yyyy:\n"
+        return self.__regex_check()
+
+
+    def email(self, email):
+        self.text = email
+        self.regex = '^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]+)$' # para detectar e-mail válido
+        self.message = "Por favor, insira um e-mail válido:\n"
+        return self.__regex_check()
+
+            
+    def duration(self, duration):
+        self.text = duration
+        self.regex = '\d+' # para detectar 3 dígitos
+        self.message = "Por favor, insira somente o número de meses:\n"
+        return self.__regex_check()
 
 def print_full_table(table, cond='table'):
     if cond == 'table':
@@ -38,6 +80,7 @@ def print_full_table(table, cond='table'):
     print(cursor.execute(cursor_head_var).fetchall())
 
 if __name__=="__main__":
+    check = Check() #Crio um objeto para a classe Check
 
     os.chdir(sys.path[0]) #seleciono o caminho atual como padrão
     address = os.path.join('files', 'university.db')
@@ -72,7 +115,7 @@ if __name__=="__main__":
     course_table = """CREATE TABLE IF NOT EXISTS Course (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name VARCHAR2(255),
-    duration VARCHAR2(255),
+    duration INTEGER,
     syllabus TEXT);
     """
     #Class Table
@@ -114,10 +157,9 @@ if __name__=="__main__":
                 resp = input("")
                 if resp == '1':
                     print(f"Resposta {resp}")
-                    person_obj = Person()
-                    person_obj.is_student()
+                    student_obj = Student()
                     db.commit() #executa as mudanças no bd
-                    print(f"A pessoa {person_obj.first_name} {person_obj.last_name} foi cadastrada com sucesso.\n")                    
+                    print(f"A pessoa {student_obj.first_name} {student_obj.last_name} foi cadastrada com sucesso.\n")                    
                     print_full_table('Student','table')
                 elif resp == '2':
                     print(f"Resposta {resp}")
@@ -129,7 +171,7 @@ if __name__=="__main__":
                 elif resp == '3':
                     print(f"Resposta {resp}")
                     name = input("Por favor, insira o *nome* do Curso:\n")
-                    duration = input("Por favor, insira a *duração* do curso:\n")
+                    duration = input("Por favor, insira a *duração* do curso, em meses:\n")
                     syllabus = input("Por favor, insira a *ementa* do curso:\n")
                     cursor.execute("INSERT INTO Course (name,duration,syllabus) VALUES (?,?,?)", (name, duration, syllabus,))
                     db.commit() #executa as mudanças no bd
