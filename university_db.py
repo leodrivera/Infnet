@@ -118,9 +118,14 @@ def print_full_table(table, cond='table'):
 
 if __name__=="__main__":
     check = Check() #Crio um objeto para a classe Check
-
+    
     os.chdir(sys.path[0]) #seleciono o caminho atual como padrão
-    address = os.path.join('files', 'university.db')
+
+    #Verifico se existe a pasta files. Se não existir, eu crio.
+    if not os.path.isdir("files"):
+        os.mkdir("files")
+    
+    address = os.path.join("files", 'university.db')
 
     db = sqlite3.connect(address) #Cria o bd se não existir
     cursor = db.cursor() #Cria um cursor para fazer as operações com o banco de dados
